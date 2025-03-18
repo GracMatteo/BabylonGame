@@ -1,95 +1,127 @@
-import { Engine, Scene } from '@babylonjs/core';
-import  Player  from './Player.js';
-import  PlayerInput  from './PlayerInput.js';
+import {AxesViewer,KeyboardEventTypes, Scene ,Color4,MeshBuilder,Vector3,FreeCamera, StandardMaterial,HemisphericLight, Color3,AmmoJSPlugin} from '@babylonjs/core';
+import {GridMaterial} from "@babylonjs/materials";
+import {Inspector} from "@babylonjs/inspector";
+
+import Ammo from 'ammo.js'; 
+
+import Player from './Player.js';
+import { GlobalManager } from './GlobalManager.js';
+
+
+var DEBUG_MODE = true;
 
 export default class Game {
-    constructor(canvas) {
-        this.canvas = canvas;
-        this.engine = new Engine(this.canvas, true);
-        this.scene = new Scene(this.engine);
-        
+    
+    engine;
+    canvas;
+    scene;
+
+    camera;
+    light;
+    axesWorld;
+
+    startTimer;
+    
+    player;
+    
+    inputMap = {};
+    actions = {}
+
+    constructor(engine,canvas) {
+        GlobalManager.engine = engine;
+        GlobalManager.canvas = canvas;
     }
 
     async init() {
-        this._createScene();
-        this.playerInput = new PlayerInput();
-        this.player = new Player(this.scene, this.camera, this.playerInput);
+        GlobalManager.engine.displayLoadingUI();
         
+        
+        
+        await this.createScene();
+        this.initKeyboard();
+        this.player = new Player();   
+        await this.player.init();
+        GlobalManager.engine.hideLoadingUI();
     }
 
-    start() {
-        this.scene.onBeforeRenderObservable.add(() => {
-            this.player.update();
-        });
+    async start() {
         
-        this.engine.runRenderLoop(() => {
-            this.scene.render();
-        });
-
-        window.addEventListener('resize', () => {
-            this.engine.resize();
-        });
-    }
-    
-    _createScene() {
-        // Create your scene instance if not already created
-        // Create a basic light, aiming 0,1,0 - meaning, to the sky
-        this.light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), this.scene);
-        //this.ground = new BABYLON.MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, this.scene);
+        await this.init();
         
-        
-        // Création d'un ground de 50x50 unités
-        //this.ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 50, height: 50 }, this.scene);
-        this.ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("ground", "./src/game/assets/heightMap/heightMap.png", {
-            width: 1000,
-            height: 1000,
-            subdivisions: 100,
-            minHeight: -100,
-            maxHeight: 100
+        if(DEBUG_MODE){
+            Inspector.Show(GlobalManager.scene,{});
+        }
 
-        }, this.scene);
+        this.startTimer = 0;
+        GlobalManager.engine.runRenderLoop(() => {
 
-        const groundMaterial = new BABYLON.StandardMaterial("ground");
-        groundMaterial.diffuseTexture = new BABYLON.Texture("./src/game/assets/heightMap/RuggedTerrain.jpg", this.scene);
-        this.ground.material = groundMaterial;
-        // Inclinaison du ground : par exemple, 15 degrés sur l'axe X
-        //this.ground.rotation.x = BABYLON.Tools.ToRadians(15);
-
-
-        // Create a camera (e.g., an ArcRotateCamera)
-        // Create the box without the collision property in the options
-        var box = BABYLON.MeshBuilder.CreateBox("box", {
-            width: 5,
-            height: 20,
-            depth: 5,
-        }, this.scene);
-
-        // Enable collision detection on the created mesh
-        box.checkCollisions = true;
-        box.position = new BABYLON.Vector3(10,-30, 10);
-        
-        
-        var box2 = BABYLON.MeshBuilder.CreateBox("box", {
-            width: 2,
-            height: 2,
-            depth: 2,
-        }, this.scene);
-        box2.checkCollisions = true;
-        box2.position = new BABYLON.Vector3(0, 0, 4);
-        
-        // Create a camera
-        this.camera = new BABYLON.ArcRotateCamera(
-          "camera",
-          Math.PI / 2,
-          Math.PI / 4,
-          10,
-          new BABYLON.Vector3(0, 0, 0),
-          this.scene
-        );
-        this.camera.attachControl(this.canvas, true);
+            GlobalManager.update();
+            //console.log("delta time : "+DELTA_TIME )
+            this.update();
+            
+             
+            this.actions = {};
+            GlobalManager.scene.render(); 
+            
+        })
     }
     
-    stop() {
-        this.engine.stopRenderLoop();
+    update(){
+        //console.log("inputMap in Update of Game :"+this.inputMap)
+        
+        //rajouter les updates de toutes les entités
+        this.player.update(this.inputMap,this.actions);
+        this.startTimer += GlobalManager.deltaTime;
     }
+
+    async createScene() {
+        
+        GlobalManager.scene = new Scene(GlobalManager.engine);
+        GlobalManager.scene.clearColor = new Color4(0,0,0,0);
+        //GlobalManager.scene.collisionsEnabled = true;
+        //GlobalManager.scene.enablePhysics(new Vector3(0, -10, 0), new AmmoJSPlugin(true, Ammo));
+
+        //faire un cameraManager
+        
+        //GlobalManager.camera = new FreeCamera("camera", new Vector3(0, 5, -10), GlobalManager.scene);
+        //GlobalManager.camera.attachControl(GlobalManager.canvas, true);
+        
+        this.light = new HemisphericLight("light", new Vector3(0, 0.8, 0), GlobalManager.scene);
+        
+        
+        var ground = MeshBuilder.CreateGround("ground", {width: 6, height: 6});
+        var groundMaterial = new StandardMaterial("groundMaterial");
+        groundMaterial.diffuseColor = new Color3( 0, 0, 1);
+        ground.material = groundMaterial
+        if (DEBUG_MODE){
+            
+            this.axesWorld = new AxesViewer(GlobalManager.scene, 4);
+            //ground grid pour debug
+            var groundMaterial = new GridMaterial("groundMaterial");
+            groundMaterial.diffuseColor = new Color3(0, 0, 1);
+            ground.material = groundMaterial;    
+        }
+        
+    }
+
+    //a mettre dans un autre fichier
+    initKeyboard(){
+        GlobalManager.scene.onKeyboardObservable.add((kbInfo) => {
+            switch (kbInfo.type) {
+                case KeyboardEventTypes.KEYDOWN :
+                    this.inputMap[kbInfo.event.code] = true;
+                    //console.log("keyDOWN"+kbInfo.event.code);
+                    break;
+                case KeyboardEventTypes.KEYUP :
+                    this.inputMap[kbInfo.event.code] = false;
+                    this.actions[kbInfo.event.code] = true;
+                    //console.log("keyUP"+kbInfo.event.code);
+                    break;
+            }
+        })
+    }
+
+
+
 }
+export {DEBUG_MODE}

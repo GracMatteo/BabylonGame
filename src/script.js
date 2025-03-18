@@ -1,16 +1,25 @@
 import Game from "./game/Game.js";
-import '@babylonjs/loaders/glTF';
+import {Engine} from '@babylonjs/core';
 
-async function init() {
-    const canvas = document.querySelector("canvas");
-    if (!canvas) {
-        console.error("Canvas introuvable !");
-        return;
-    }
+import Ammo from 'ammo.js';
 
-    const game = new Game(canvas);
-    await game.init();
+let engine;
+let canvas;
+let game;
+
+window.onload = () => {
+    canvas = document.getElementById("canvas");
+    engine = new Engine(canvas, true);
+    window.addEventListener("resize", function() {
+        engine.resize();
+    })
+
+
+    game = new Game(engine, canvas);
     game.start();
-}
 
-init();
+};
+
+
+
+
