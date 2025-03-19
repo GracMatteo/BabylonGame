@@ -20,7 +20,7 @@ import Player from "./Player.js";
 import { GlobalManager } from "./GlobalManager.js";
 
 // Ajout d'une variable pour stocker l'état du debug mode
-let DEBUG_MODE = false;
+let DEBUG_MODE = true;
 
 // Modification de la fonction DEBUG_MODE pour la transformer en méthode de la classe Game
 
