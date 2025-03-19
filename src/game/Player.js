@@ -1,183 +1,182 @@
+// Importation des composants nécessaires de Babylon.js
 import {Vector3,AxesViewer,MeshBuilder,StandardMaterial,Color3} from '@babylonjs/core';
 
+// Importation du chargeur de scène et des loaders additionnels
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
-import '@babylonjs/loaders';  // This registers all additional loaders like GLTF, OBJ, etc.
+import '@babylonjs/loaders';  // Enregistre les loaders GLTF, OBJ, etc.
 
-
+// Importation des fonctions utilitaires et des composants
 import {getForwardVector, getRightVector,getUpVector} from "./getDirectionMesh.js";
 import {ArcRotateCamera, Quaternion} from "babylonjs"
 import {DEBUG_MODE} from "./Game.js"
 import { GlobalManager } from './GlobalManager.js';
 
-//import { SceneLoader } from '@babylonjs/Loading/sceneLoader';
+// Constantes pour les paramètres de mouvement
+const SPEED = 5; // Vitesse de déplacement
+const SPEED_ROTATION = 5; // Vitesse de rotation
 
-const SPEED = 5;
-const SPEED_ROTATION = 5;
-
+// Chemins pour le modèle 3D du joueur
 const pathPlayerGLB = "./src/game/assets/";
 const PlayerGLB = "angryAntoine.glb"; 
 
+/**
+ * Classe représentant le joueur
+ */
 class Player{
   
+  // Propriétés du mesh
   mesh;
   shadow;
   
+  // Références scène et caméra
   scene;
   camera;
   axies;
 
-  //vecteur d'input
-  moveInput = new Vector3(0,0,0);
-  //vecteur de déplacement 
-  moveDirection = new Vector3(0,0,0);
+  // Vecteurs de mouvement
+  moveInput = new Vector3(0,0,0); // Vecteur d'entrée
+  moveDirection = new Vector3(0,0,0); // Vecteur de déplacement
 
+  // Quaternion pour la rotation
   lookDirectionQuaternion = new Quaternion.Identity();
 
   constructor(){
   
   }
 
+  /**
+   * Initialise le joueur
+   */
   async init(){
-    
-    //mesh player
-    //this.mesh = MeshBuilder.CreateBox("playerMesh", {size: 1});
-    //this.mesh.material = new StandardMaterial("playerMaterial", GlobalManager.scene);
-    //this.mesh.material.diffuseColor = new Color3(0 , 1, 0);  
-    //this.mesh.position = new Vector3(3, 0.5, 3);
-    
-    
+    // Chargement du modèle 3D
     const result = await SceneLoader.ImportMeshAsync("",pathPlayerGLB,PlayerGLB,GlobalManager.scene);
     this.mesh = result.meshes[0];
     this.mesh.position = new Vector3(1, 0.5, 1);
-    //this.mesh.rotation = new Vector3(0,Math.PI,0);
     this.mesh.rotationQuaternion = Quaternion.Identity();
-    //this.mesh
+
+    // Configuration de la caméra qui suit le joueur
     let camera = new ArcRotateCamera("playerCamera",
-      -Math.PI/2,       
-      3*Math.PI/10,       
-      10,                
+      -Math.PI/2,       // Alpha
+      3*Math.PI/10,     // Beta 
+      10,               // Rayon
       this.mesh.positsion, 
       GlobalManager.scene
     );
     GlobalManager.camera = camera;
-    /*
-    GlobalManager.camera = ArcRotateCamera("playerCamera",
-      -Math.PI/2,       
-      3*Math.PI/10,       
-      10,                
-      this.mesh.position, 
-      GlobalManager.scene
-    );
-    */
-    // Activer les contrôles de la caméra avec la souris
+
+    // Active les contrôles de la caméra
     GlobalManager.camera.attachControl(GlobalManager.engine.getRenderingCanvas(), true);
 
-    
-
-<<<<<<< HEAD
-        // -- (6) Instancier MovementRelative en lui passant la hitbox si nécessaire --
-        this.movementPlayer = new MovementRelative(
-          this.mesh,
-          this.camera,
-          this.hitbox,
-          this.inputs
-        );
-        //this.shadowGenerator = new BABYLON.ShadowGenerator(1024, this.camera);
-        //this.shadowGenerator.addShadowCaster(this.mesh);
-      })
-      .catch((error) => {
-        console.error("Erreur lors de l'importation du mesh :", error);
-      });
-      //marche pas reste au point de départ
-      let axes = new BABYLON.Debug.AxesViewer(this.scene);
-      axes.xAxis.isVisible = true;
-      axes.yAxis.isVisible = true;
-      axes.zAxis.isVisible = true;
-      axes.xAxis.parent = this.mesh;
-      axes.yAxis.parent = this.mesh;
-      axes.zAxis.parent = this.mesh;
-      //
-=======
     this.applyCameraToInput();
-    //GlobalManager.camera.setTarget(this.mesh.position);
-    
 
-    if(DEBUG_MODE){
-      //axies pour debug
+    // Créer la Hitbox (ellipsoide) autour du joueur
+    // Définit la taille de l'ellipsoïde de collision
+    this.mesh.ellipsoid = new Vector3(1, 1, 1);
+    // Décalage vertical de l'ellipsoïde
+    const offsetY = 0.0;
+    // Applique le décalage à l'ellipsoïde
+    this.mesh.ellipsoidOffset = new Vector3(0, offsetY, 0);
+
+    if (DEBUG_MODE) {
+      // Ajoute les axes de debug si nécessaire
       this.axies = new AxesViewer(GlobalManager.scene, 1)
       this.axies.xAxis.parent = this.mesh;
       this.axies.yAxis.parent = this.mesh;
       this.axies.zAxis.parent = this.mesh;
-    }
-      
+
+      //Create Visible Ellipsoid around player  ( https://playground.babylonjs.com/#0NESCY#2 )
+      const a = this.mesh.ellipsoid.x;
+      const b = this.mesh.ellipsoid.y;
+      const points = [];
+      for (let theta = -Math.PI / 2; theta < Math.PI / 2; theta += Math.PI / 36) {
+          points.push(new Vector3(0, b * Math.sin(theta) + offsetY, a * Math.cos(theta)));
+      }
+
+      const ellipse = [];
+      ellipse[0] = MeshBuilder.CreateLines("e", { points: points }, GlobalManager.scene);
+      ellipse[0].color = Color3.Red();
+      ellipse[0].parent = this.mesh;
+      const steps = 12;
+      const dTheta = 2 * Math.PI / steps;
+      for (let i = 1; i < steps; i++) {
+          ellipse[i] = ellipse[0].clone("el" + i);
+          ellipse[i].parent = this.mesh;
+          ellipse[i].rotation.y = i * dTheta;
+      }
+  }
+   
+
+    
   }
 
+  /**
+   * Met à jour l'état du joueur
+   */
   update(inputMap, actions){
-    //console.log("input in update :"+inputMap)
     this.getInputs(inputMap,actions);
     this.applyCameraToInput();
-    //console.log("delta time ="+delta)
     this.move(GlobalManager.deltaTime);
->>>>>>> a47d73997859d15ba511d720531dde5ce82d637c
   }
   
-  //faire un InputManager
+  /**
+   * Gère les entrées clavier
+   */
   getInputs(inputMap,actions){
     
     this.moveInput.set(0,0,0);
-    //console.log("inputmap in getInput :"+inputMap);
+    
+    // Déplacements latéraux
     if(inputMap["KeyA"]){
       this.moveInput.x = -1;
-      //consol.log("mesh position X :"+ this.mesh.position.x) 
     }
-    
     if (inputMap["KeyD"]){
       this.moveInput.x = 1;
     }
 
+    // Déplacements avant/arrière
     if(inputMap["KeyW"]){
       this.moveInput.z = 1;
     }
-    
     if(inputMap["KeyS"]){
       this.moveInput.z = -1;
     }
     
+    // Saut
     if(inputMap[" "]){
       this.moveInput.y = 1;
     }
 
   }
 
+  /**
+   * Calcule le vecteur de déplacement en fonction de la caméra
+   */
   applyCameraToInput(){
     
     this.moveDirection.set(0, 0, 0);
     
     if(this.moveInput.length() !== 0){
       
-      //recuperer le forward de la camera
+      // Calcul du vecteur avant
       let forward = getForwardVector(GlobalManager.camera,true);
-      //reset Y
       forward.y = 0;
-      //normaliser
       forward.normalize();
       forward.scaleInPlace(this.moveInput.z);
       
-      //recuperer le forward de la camera
+      // Calcul du vecteur droite
       let right = getRightVector(GlobalManager.camera,true);
-      //reset Y
       right.y = 0;
-      //normaliser
       right.normalize();
       right.scaleInPlace(this.moveInput.x);
       
-      //essai de mettre un saut
+      // Vecteur haut pour le saut
       let up = getUpVector(GlobalManager.camera,true)
 
-      //add les 2 vecteurs
+      // Combine les vecteurs
       this.moveDirection = right.add(forward);
       this.moveDirection.normalize();
 
+      // Calcule la rotation
       Quaternion.FromLookDirectionLHToRef(
         this.moveDirection, 
         Vector3.UpReadOnly,
@@ -185,27 +184,26 @@ class Player{
       }  
   }
 
+  /**
+   * Applique le mouvement au mesh du joueur
+   */
   move(){
     
     if (!this.mesh) return;
-    //check si il y a un vecteur d'input 
+
     if(this.moveDirection.length() != 0){
       
-      //permet de positionner le mesh dans la direction calculer
-      //this.mesh.lookAt(this.mesh.position.add(this.moveDirection));
-
-      //permet de positionner le mesh dans la bonne direction  
+      // Rotation progressive vers la direction
       Quaternion.SlerpToRef(this.mesh.rotationQuaternion ,this.lookDirectionQuaternion,SPEED_ROTATION * GlobalManager.deltaTime, this.mesh.rotationQuaternion)
-      //permet d'appliquer la translation
-      this.moveDirection.scaleInPlace(SPEED * GlobalManager.deltaTime);
       
+      // Application du déplacement
+      this.moveDirection.scaleInPlace(SPEED * GlobalManager.deltaTime);
       this.mesh.position.addInPlace(this.moveDirection);
     
     }
-    //permet de suivre le Player
+    // Met à jour la cible de la caméra
     GlobalManager.camera.target = this.mesh.position;
   }
-
 
 }
 

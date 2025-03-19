@@ -1,7 +1,18 @@
 import * as BABYLON from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
 
+/**
+ * Classe gérant le mouvement relatif d'un personnage par rapport à la caméra
+ */
 export default class MovementRelative {
+  /**
+   * Crée une nouvelle instance de MovementRelative
+   * @param {Mesh} mesh - Le mesh du personnage
+   * @param {Camera} camera - La caméra qui suit le personnage
+   * @param {Mesh} hitbox - La hitbox pour les collisions
+   * @param {Object} inputs - L'objet gérant les entrées clavier
+   * @param {number} gravity - La force de gravité (défaut: -0.035)
+   */
   constructor(mesh, camera, hitbox, inputs, gravity = -0.035) {
     this.mesh = mesh;
     this.camera = camera;
@@ -19,6 +30,9 @@ export default class MovementRelative {
    * Si une collision est détectée avant d'atteindre cette distance, le personnage est repositionné
    * juste avant le point d'impact et la méthode retourne true.
    * Sinon, elle retourne false.
+   * @param {Vector3} moveDirection - Direction du mouvement
+   * @param {number} displacementLength - Distance du déplacement
+   * @returns {boolean} True si collision détectée, false sinon
    */
   checkCollisionWithRay(moveDirection, displacementLength) {
     // Normaliser la direction
@@ -64,6 +78,9 @@ export default class MovementRelative {
   /**
    * Vérifie les collisions latérales en lançant un raycast dans la direction donnée (gauche ou droite).
    * Si une collision est détectée, repositionne le mesh pour éviter l'intersection.
+   * @param {Vector3} sideDirection - Direction latérale à vérifier
+   * @param {number} displacementLength - Distance du déplacement
+   * @returns {boolean} True si collision détectée, false sinon
    */
   checkSideCollision(sideDirection, displacementLength) {
     sideDirection = BABYLON.Vector3.Normalize(sideDirection);
@@ -84,6 +101,10 @@ export default class MovementRelative {
     return false;
   }
   
+  /**
+   * Calcule et applique les mouvements du personnage en fonction des entrées
+   * Gère les déplacements, le saut, le dash et les collisions
+   */
   calculMovemente() {
     if (!this.mesh) return;
     const step = 0.15;
@@ -199,7 +220,7 @@ export default class MovementRelative {
 
   /**
    * Effectue un raycast vertical pour détecter le sol (objet nommé "ground" ou "box").
-   * Retourne la hauteur Y du sol plus un offset si trouvé, sinon null.
+   * @returns {number|null} La hauteur Y du sol plus un offset si trouvé, sinon null
    */
   getGroundHeight() {
     const ray = new BABYLON.Ray(
@@ -215,6 +236,10 @@ export default class MovementRelative {
     return null;
   }
 
+  /**
+   * Effectue un raycast vertical vers le haut pour détecter le plafond
+   * @returns {number|null} La hauteur Y du plafond moins un offset si trouvé, sinon null
+   */
   getCeilingHeight() {
     const ray = new BABYLON.Ray(
       this.mesh.position,
