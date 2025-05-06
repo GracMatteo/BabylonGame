@@ -206,7 +206,7 @@ export default class Game {
         panel.width = "220px";
         panel.height = "100px";
         panel.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
         this.gui.addControl(panel);
         
         const textBlock = new GUI.TextBlock("text", "Score : " + this.player.score.getScore());
