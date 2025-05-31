@@ -44,7 +44,7 @@ class SoundManager {
             url,
             GlobalManager.scene,
             () => music.play(),
-            {loop:true, volume: 0.0}
+            {loop:true, volume: 0.2}
         );
         this.sounds.set(name, music);
     }
