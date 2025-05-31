@@ -35,6 +35,7 @@ class Etoile extends Object3D{
             this.setAxisDebug();
         }
         this.setPosition(this.position);
+        this.setScale(new Vector3(2,2,2)); // Set initial scale
         this.setRotationQuaternion(new Quaternion(0,1,0,0)); // Rotation quaternion for Y-axis
         this._baseY = this.meshEtoile.position.y;
     }
@@ -63,11 +64,6 @@ class Etoile extends Object3D{
         this.meshEtoile.position.y = y;
     }
     
-    isIntersectWithPlayer(){
-        
-    }
-
-
     move(){
         this.rotateY(0.3);
         this.oscilation(0.1,1);    
@@ -78,5 +74,7 @@ class Etoile extends Object3D{
         this.scaleDown(0.07);
         this.move();
     }
+
+    
 
 }export default Etoile;

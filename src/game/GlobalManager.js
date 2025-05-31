@@ -1,5 +1,5 @@
 import {Vector3} from '@babylonjs/core';
-
+import * as GUI from '@babylonjs/gui';
 
 class GlobalManager {
    
@@ -7,6 +7,8 @@ class GlobalManager {
     canvas;
     scene;
     audioEngine;
+
+    gui;
 
     sunAngle = 0;
     sunTranslation = 0;
@@ -84,21 +86,43 @@ class GlobalManager {
      this.lights[0].direction = sunDirection;
    }
 
-   lightTranslation(){
-     // Mise à jour de l'angle (par exemple, décrémenté pour un mouvement horaire)
-     this.sunAngle += 0.1 * this.deltaTime;
-     
-     // Calcul de la nouvelle position sur le cercle de rayon 'this.rayon'
-     const sunTranslation = new Vector3(
-       Math.sin(this.sunAngle) * this.rayon ,   // Coordonnée x
-       -Math.cos(this.sunAngle) * this.rayon ,  // Coordonnée y
-       30                                   // Coordonnée z (reste à 0 pour un plan 2D)
-     );
-     
-     // Affectation de la position calculée à la lumière
-     this.lights[0].position = sunTranslation;
-   }
+     lightTranslation(){
+          // Mise à jour de l'angle (par exemple, décrémenté pour un mouvement horaire)
+          this.sunAngle += 0.1 * this.deltaTime;
+          
+          // Calcul de la nouvelle position sur le cercle de rayon 'this.rayon'
+          const sunTranslation = new Vector3(
+          Math.sin(this.sunAngle) * this.rayon ,   // Coordonnée x
+          -Math.cos(this.sunAngle) * this.rayon ,  // Coordonnée y
+          30                                   // Coordonnée z (reste à 0 pour un plan 2D)
+          );
+          
+          // Affectation de la position calculée à la lumière
+          this.lights[0].position = sunTranslation;
+     }
+
+     //GUI
+     initGUI(playerScore) {
+          this.gui = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+          const panel = new GUI.StackPanel("panel");
+          panel.width = "220px";
+          panel.height = "100px";
+          panel.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+          panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+          this.gui.addControl(panel);
+           
+          const textBlock = new GUI.TextBlock("text", "Score : " + playerScore);
+          textBlock.color = "white";
+          textBlock.fontSize = 24;
+          panel.addControl(textBlock);
+     }
    
+     onScoreUpdate(score) {
+          const textBlock = this.gui.getControlByName("text");
+          if (textBlock) {
+               textBlock.text = "Score : " + score;
+          }
+    }
 
 }
 

@@ -6,8 +6,12 @@ import { Quaternion, Sound, Vector4 } from 'babylonjs';
 import {DEBUG_MODE} from "./Game.js";
 import Etoile from './Etoile.js';
 import Score from './Score.js';
+import { SoundManager } from './SoundManager.js';
 
 const MAX_ETOILES = 10; // Maximum number of stars
+
+const collect_star_sound = "/assets/sounds/collect_star.wav";
+
 
 class EtoileManager {
     
@@ -20,20 +24,7 @@ class EtoileManager {
     }
 
     async init(planet) {
-        //ne fonctionne pas
-        //load sound
-        this.collectSound = new Sound(
-            "collect_star",
-            "/assets/sounds/collect_star.wav",
-            GlobalManager.scene,
-            null,
-            {
-                volume: 0.5 , 
-            }
-        );
-        
-        //console.log("Etoile sound loaded", this.collectSound);
-        
+       
         this.currentPlanet = planet; // Set the current planet
         //console.log("EtoileManager initialized with planet:", this.currentPlanet);
         
@@ -80,13 +71,12 @@ class EtoileManager {
             //console.log("intersect",etoile.meshEtoile.intersectsMesh(playerMesh,false))
             if(etoile.meshEtoile.getChildren()[0].intersectsMesh(player.mesh,false)){
                 //console.log("etoile intersected with player");
-                
+                SoundManager.playSound("star_collect",collect_star_sound)
                 // Update score in the console (a faire avec le GUI de Babylon.js)
                 player.score.updateScore(1);
                 
                 
                 //console.log(player.score) // Update the score when the star is collected
-                this.collectSound.play(); // Play the sound when the star is collected
                 this.etoiles.splice(this.etoiles.indexOf(etoile), 1);
                 etoile.meshEtoile.dispose(); // Dispose of the mesh to free up memory
             }
@@ -104,6 +94,15 @@ class EtoileManager {
         //console.log("etoiles",this.etoiles.length);
     }
 
+    dispose() {
+        this.etoiles.forEach(etoile => {
+            etoile.meshEtoile.dispose();
+        });
+        this.etoiles = []; // Clear the array of stars
+        if(this.collectSound) {
+            this.collectSound.dispose(); // Dispose of the sound if it exists
+        }
+    }
 
 }export default EtoileManager;
     

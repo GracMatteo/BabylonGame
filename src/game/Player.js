@@ -9,19 +9,28 @@ import {GlobalManager} from './GlobalManager.js';
 import Game from './Game.js';
 import Score from './Score.js';
 
-const SPEED = 5;
-const SPEED_ROTATION = 5;
-const JUMP_FORCE = 10;
+const SPEED = 20;
+const SPEED_ROTATION = 10;
+const JUMP_FORCE = 20;
+const SUPER_JUMP = 45;
 
 const pathPlayerGLB = "/assets/";
-const PlayerGLB = "angryAntoine.glb"; 
+const PlayerGLB = "mario.glb"; 
 
 class Player {
   mesh;
+  animationsGroup;
   scene;
   camera;
   axies;
 
+  //animations
+  walkAnimation;
+  bWasWalking = false;
+  bWalking = false;
+  
+  idleAnimation;
+  
   score;
 
   trail;
@@ -34,7 +43,7 @@ class Player {
   tmpRotationSpeed;
   speed;
   //
-  gravity = -9.8;
+  
   gravityVelocity = new Vector3(0, 0, 0);
   tmpGravity;
   jumpForce = JUMP_FORCE;
@@ -56,18 +65,26 @@ class Player {
   constructor() {}
 
   async init(planet) {
+    //const sphere = MeshBuilder.CreateSphere("sphere", {diameter: 1}, GlobalManager.scene);
+    //this.mesh = sphere;
     const result = await SceneLoader.ImportMeshAsync("", pathPlayerGLB, PlayerGLB, GlobalManager.scene);
+    //console.log("Player mesh loaded:", result);
     this.mesh = result.meshes[0];
     this.mesh.name = "player";
     // this.mesh = MeshBuilder.CreateBox("player", {size: 1}, GlobalManager.scene);
-    this.mesh.position = new Vector3(20, 45, 20);
-    this.mesh.ellipsoid = new Vector3(0.5, 0.5, 0.5);
-    this.mesh.ellipsoidOffset = new Vector3(0.0, 0.0, 0.0);
-    
-    this.score = new Score("Mario-Land3D")
+    this.mesh.position = new Vector3(2,planet.radius/2,2);
+    this.mesh.ellipsoid = new Vector3(0.001,0.001,0.001);
+    //this.mesh.ellipsoid.scaling = new Vector3(40, 40, 40);
+    this.mesh.ellipsoidOffset = new Vector3(0, 0, 0);
     //this.mesh.scaling = new Vector3(0.03, 0.03, -0.03);
-    
 
+    this.score = new Score("Mario-galaxy-Land3D")
+    
+    //animations 
+    this.animationsGroup = result.animationGroups;
+    this.idleAnimation = this.animationsGroup[0];
+    this.walkAnimation = this.animationsGroup[1];
+    
     //bizarre
     //this.initTrail();
 
@@ -79,7 +96,7 @@ class Player {
       createEllipsoidLines(this.mesh, this.mesh.ellipsoid.x - this.mesh.ellipsoidOffset.x, this.mesh.ellipsoid.y - this.mesh.ellipsoidOffset.y);
     }
 
-    let camera = new ArcRotateCamera("playerCamera", -Math.PI / 2, 3 * Math.PI / 10, 10, this.mesh.position, GlobalManager.scene);
+    let camera = new ArcRotateCamera("playerCamera", -Math.PI / 2, 3 * Math.PI / 10, 40, this.mesh.position, GlobalManager.scene);
     
     
     GlobalManager.camera = camera;
@@ -88,11 +105,13 @@ class Player {
 
     this.applyCameraToInput();
     
-    this.tmpGravity = this.gravity;
+    this.currentPlanet = planet
+    console.log("currentPlanet : ", this.currentPlanet);
+    this.tmpGravity = this.currentPlanet.gravity;
     this.tmpRotationSpeed = this.rotationSpeed;
     
     if (DEBUG_MODE) {
-      this.axies = new AxesViewer(GlobalManager.scene, 1);
+      this.axies = new AxesViewer(GlobalManager.scene, 10);
       this.axies.xAxis.parent = this.mesh;
       this.axies.yAxis.parent = this.mesh;
       this.axies.zAxis.parent = this.mesh;
@@ -115,44 +134,72 @@ class Player {
   getInputs(inputMap, actions) {
     this.moveInput.set(0, 0, 0);
 
-    if (inputMap["KeyA"]) this.moveInput.x = -1;
-    if (inputMap["KeyD"]) this.moveInput.x = 1;
-    if (inputMap["KeyW"]) this.moveInput.z = 1;
-    if (inputMap["KeyS"]) this.moveInput.z = -1;
+    this.bWasWalking = this.bWalking;
+    this.bWalking = false;
 
-    // Si la touche espace est pressée et que le personnage n'est pas déjà en saut, déclenche le saut
-    if (actions["Space"] && !this.isJumping) {
+    if (inputMap["KeyA"]){ 
+      this.moveInput.x = -1;
+      this.bWalking = true;
+    } 
+    if (inputMap["KeyD"]){ 
+      this.moveInput.x = 1;
+      this.bWalking = true;
+    }
+    if (inputMap["KeyW"]){ 
+      this.moveInput.z = 1;
+      this.bWalking = true;
+    }
+    if (inputMap["KeyS"]){
+      this.moveInput.z = -1;
+      this.bWalking = true;
+    }
+    //super jump pour se deplacer de planète en planète
+    if ((actions["ShiftLeft"]  || actions["buttonSquare"] )&& !this.isJumping) {
+      console.log("Jump triggered by gamepad button X");
+      this.superJump();
+      actions["ShiftLeft"] = false;
+      actions["Space"] = false;
+    }
+    //jump
+    if ((actions["Space"] || actions["buttonx"]) && !this.isJumping) {
       this.jump();
       actions["Space"] = false;
     }
     
     if (inputMap["leftStickX"] !== undefined && Math.abs(inputMap["leftStickX"]) > 0.15) {
       this.moveInput.x = inputMap["leftStickX"] * GlobalManager.deltaTime;
+      this.bWalking = true;
     }
     if (inputMap["leftStickY"] !== undefined && Math.abs(inputMap["leftStickY"]) > 0.15) {
       this.moveInput.z = -inputMap["leftStickY"] * GlobalManager.deltaTime;
+      this.bWalking = true;
     }
 
     if (inputMap["rightStickX"] !== undefined && Math.abs(inputMap["rightStickX"]) > 0.15) {
       GlobalManager.camera.alpha -= inputMap["rightStickX"] * GlobalManager.deltaTime;
+      this.bWalking = true;
     }
     if (inputMap["rightStickY"] !== undefined && Math.abs(inputMap["rightStickY"]) > 0.15) {
       GlobalManager.camera.beta -= inputMap["rightStickY"] * GlobalManager.deltaTime;
+      this.bWalking = true;
     }
     
-    //marche pas
-  
-    if (actions["buttonX"] && !this.isJumping) {
-      console.log("Jump triggered by gamepad button X");
-      this.jump();
-      actions["buttonX"] = false;
-    }
+    
+
   }
   
+  
+
   // Méthode dédiée pour déclencher le saut
   jump() {
     // Applique une impulsion dans la direction opposée à la normale (donc vers le haut)
     this.gravityVelocity = this.normalVector.scale(this.jumpForce);
+    this.isJumping = true;
+  }
+
+  superJump() {
+    // Applique une impulsion dans la direction opposée à la normale (donc vers le haut)
+    this.gravityVelocity = this.normalVector.scale(SUPER_JUMP);
     this.isJumping = true;
   }
 
@@ -186,12 +233,22 @@ class Player {
     const gravityMove = this.gravityVelocity.scale(GlobalManager.deltaTime);
     finalMove.addInPlace(gravityMove);
     
-    if (this.moveDirection.length() !== 0) {
+    if (this.moveDirection.length() != 0) {
       Quaternion.SlerpToRef(this.mesh.rotationQuaternion, this.lookDirectionQuaternion, SPEED_ROTATION * GlobalManager.deltaTime, this.mesh.rotationQuaternion);
       this.moveDirection.scaleInPlace(SPEED * GlobalManager.deltaTime);
       finalMove.addInPlace(this.moveDirection);
+
+      if (!this.bWasWalking && !this.isJumping){
+        this.walkAnimation.start(true, 2.0, this.walkAnimation.from, this.walkAnimation.to, false);
+      }
+
     }
-    
+    else {            
+      if (this.bWasWalking) {
+        this.walkAnimation.stop();
+        this.idleAnimation.start(true, 2.0, this.idleAnimation.from, this.idleAnimation.to, false);
+      }
+    }
     this.mesh.moveWithCollisions(finalMove);
   }
 
@@ -202,7 +259,7 @@ class Player {
     const origin = this.mesh.position;
     //console.log(this.currentPlanet.mesh.name);
     if(this.currentPlanet.mesh.name === "planet") {
-      rayChoiced = this.currentPlanet.radius;
+      rayChoiced = this.currentPlanet.radius/2;
     }
     else {
       rayChoiced = 10;
@@ -285,7 +342,7 @@ class Player {
     this.interpolatedNormal = Vector3.Lerp(this.interpolatedNormal, this.normalVector, interpolationFactor);
     
     // Appliquer la gravité en utilisant la normale interpolée
-    const gravityAccel = this.interpolatedNormal.scale(this.gravity * GlobalManager.deltaTime);
+    const gravityAccel = this.interpolatedNormal.scale(this.currentPlanet.gravity * GlobalManager.deltaTime);
     this.gravityVelocity.addInPlace(gravityAccel);
     
     // Raycast pour détecter le sol (vers la planète)
@@ -374,14 +431,7 @@ class Player {
     return this.mesh.position.subtract(planet.position);
   }
   
-  // Méthode pour vérifier si le joueur est dans le champ de gravité de la planète
-  isInGravityField() {
-    if (!this.currentPlanet) return false;
-    const distVec = this.getDistPlanetPlayer(this.currentPlanet);
-    const distance = distVec.length();
-    const gravityFieldRadius = this.currentPlanet.gravityFieldRadius || 50;
-    return distance <= gravityFieldRadius;
-  }
+  
 
   /**
  * Ajuste la position du joueur pour qu'il suive les petites irrégularités de la planète.
@@ -411,6 +461,8 @@ class Player {
       }
   }
 
+
+  //essaie non concluant de faire une traînée
   initTrail() {
     let options = { 
       diameter: 1, // Largeur de la traînée

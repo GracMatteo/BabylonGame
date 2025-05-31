@@ -5,7 +5,7 @@ import {} from '@babylonjs/core';
 class CameraManager {
     
     scene;
-    camera;
+    cameras = [];
 
 
     constructor() {
